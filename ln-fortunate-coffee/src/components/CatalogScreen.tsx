@@ -391,7 +391,7 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
               <div className="relative z-10 shrink-0">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white shadow-md">
                   <img
-                    src="/assets/menu/lucky_noodle.png"
+                    src="/assets/menu/lucky_noodle.jpg"
                     alt="Featured Dish"
                     className="w-full h-full object-cover"
                     loading="lazy"
