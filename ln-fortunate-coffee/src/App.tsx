@@ -225,7 +225,7 @@ export default function App() {
       </div>
 
       {/* Screen & QR Link testing toolbar (Desktop preview only) */}
-      <aside className="hidden lg:flex fixed bottom-4 right-4 z-50 bg-[#352319]/90 backdrop-blur-md border border-[#4D3325] rounded-2xl p-2.5 text-white/90 text-xs shadow-xl items-center gap-2">
+      {/* <aside className="hidden lg:flex fixed bottom-4 right-4 z-50 bg-[#352319]/90 backdrop-blur-md border border-[#4D3325] rounded-2xl p-2.5 text-white/90 text-xs shadow-xl items-center gap-2">
         <div className="flex items-center gap-1.5 pr-2 border-r border-[#543828]">
           <QrCode className="w-3.5 h-3.5 text-[#C8B8A6]" />
           <span className="text-[11px] font-medium text-[#C8B8A6]">QR Meja:</span>
@@ -275,7 +275,7 @@ export default function App() {
               : '7. Nota'}
           </button>
         ))}
-      </aside>
+      </aside> */}
     </div>
   );
 }
