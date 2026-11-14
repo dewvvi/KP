@@ -107,12 +107,34 @@ export default function App() {
     setCurrentScreen('detail');
   };
 
-  // Handle placing the order (generates digital receipt)
+  // Merge new confirmed items into existing receipt items (summing identical item + note)
+  const mergeOrderItems = (existingItems: CartItem[], newItems: CartItem[]): CartItem[] => {
+    const merged = existingItems.map((ci) => ({ ...ci }));
+    newItems.forEach((newItem) => {
+      const normalizedNote = (newItem.note || '').trim();
+      const matchIndex = merged.findIndex(
+        (m) => m.item.id === newItem.item.id && (m.note || '').trim() === normalizedNote
+      );
+      if (matchIndex > -1) {
+        merged[matchIndex] = {
+          ...merged[matchIndex],
+          quantity: merged[matchIndex].quantity + newItem.quantity,
+        };
+      } else {
+        merged.push({ ...newItem, note: newItem.note || '' });
+      }
+    });
+    return merged;
+  };
+
+  // Handle placing the order (creates initial receipt or merges into combined final receipt)
   const handleConfirmOrder = useCallback(() => {
-    const total = cart.reduce(
-      (sum, item) => sum + item.item.price * item.quantity,
-      0
-    );
+    if (cart.length === 0) {
+      if (receipt) {
+        setCurrentScreen('receipt');
+      }
+      return;
+    }
 
     // Format current date and time matching screenshot style: 01 Mei 2025, 09:41
     const now = new Date();
@@ -126,18 +148,44 @@ export default function App() {
       now.getMinutes()
     ).padStart(2, '0')}`;
 
-    const newReceipt: OrderReceipt = {
-      orderNumber: '#P250501-001',
-      tableNumber: tableNumber,
-      createdAt: dateFormatted,
-      items: [...cart],
-      total: total,
-      status: 'Menunggu Pembayaran',
-    };
+    setReceipt((prev) => {
+      if (prev) {
+        const mergedItems = mergeOrderItems(prev.items, cart);
+        const combinedTotal = mergedItems.reduce(
+          (sum, ci) => sum + ci.item.price * ci.quantity,
+          0
+        );
+        return {
+          ...prev,
+          tableNumber,
+          createdAt: dateFormatted,
+          items: mergedItems,
+          total: combinedTotal,
+          status: 'Menunggu Pembayaran',
+          orderCount: (prev.orderCount || 1) + 1,
+        };
+      }
 
-    setReceipt(newReceipt);
+      const total = cart.reduce(
+        (sum, item) => sum + item.item.price * item.quantity,
+        0
+      );
+
+      return {
+        orderNumber: '#P250501-001',
+        tableNumber,
+        createdAt: dateFormatted,
+        items: cart.map((ci) => ({ ...ci })),
+        total,
+        status: 'Menunggu Pembayaran',
+        orderCount: 1,
+      };
+    });
+
+    // Clear cart so any future additional order stays separated from confirmed orders
+    setCart([]);
     setCurrentScreen('receipt');
-  }, [cart, tableNumber]);
+  }, [cart, receipt, tableNumber]);
 
   // Start new / additional order
   const handleNewOrder = () => {
@@ -171,10 +219,12 @@ export default function App() {
           <CatalogScreen
             tableNumber={tableNumber}
             cart={cart}
+            existingReceipt={receipt}
             onSelectItem={handleSelectItem}
             onAddToCart={handleAddToCart}
             onUpdateCartQuantity={handleUpdateCartQuantity}
             onViewCart={() => setCurrentScreen('cart')}
+            onViewReceipt={() => setCurrentScreen('receipt')}
           />
         )}
 
@@ -196,11 +246,13 @@ export default function App() {
           <CartScreen
             tableNumber={tableNumber}
             cart={cart}
+            existingReceipt={receipt}
             onBack={() => setCurrentScreen('catalog')}
             onUpdateQuantity={handleUpdateCartQuantity}
             onRemoveItem={handleRemoveCartItem}
             onConfirmOrder={handleConfirmOrder}
             onNavigateToCatalog={() => setCurrentScreen('catalog')}
+            onViewReceipt={() => setCurrentScreen('receipt')}
           />
         )}
 
@@ -242,13 +294,18 @@ export default function App() {
             type="button"
             onClick={() => {
               if (scr === 'receipt' && !receipt) {
-                handleConfirmOrder();
+                if (cart.length > 0) {
+                  handleConfirmOrder();
+                }
               } else {
                 setCurrentScreen(scr);
               }
             }}
+            disabled={scr === 'receipt' && !receipt && cart.length === 0}
             className={`px-2.5 py-1 rounded-lg capitalize transition-colors ${
-              currentScreen === scr
+              scr === 'receipt' && !receipt && cart.length === 0
+                ? 'text-[#7C685A] opacity-50 cursor-not-allowed'
+                : currentScreen === scr
                 ? 'bg-[#614534] text-white font-semibold'
                 : 'text-[#C8B8A6] hover:bg-[#432D21]'
             }`}

@@ -1,26 +1,30 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { BrandLogo } from './BrandLogo';
 import { TableBadge } from './TableBadge';
-import { MenuItem, CategoryType, CartItem } from '../types';
+import { MenuItem, CategoryType, CartItem, OrderReceipt } from '../types';
 import { MENU_ITEMS, CATEGORIES, formatRupiah } from '../data/menuData';
-import { Search, Plus, Minus, ShoppingBag, ArrowRight, X, Sparkles } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, ArrowRight, X, Sparkles, ReceiptText } from 'lucide-react';
 
 interface CatalogScreenProps {
   tableNumber: string;
   cart: CartItem[];
+  existingReceipt: OrderReceipt | null;
   onSelectItem: (item: MenuItem) => void;
   onAddToCart: (item: MenuItem, quantity?: number, note?: string) => void;
   onUpdateCartQuantity: (itemId: string, change: number) => void;
   onViewCart: () => void;
+  onViewReceipt: () => void;
 }
 
 export const CatalogScreen: React.FC<CatalogScreenProps> = ({
   tableNumber,
   cart,
+  existingReceipt,
   onSelectItem,
   onAddToCart,
   onUpdateCartQuantity,
   onViewCart,
+  onViewReceipt,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('Noodles');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -37,6 +41,14 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
   const totalPrice = useMemo(
     () => cart.reduce((sum, item) => sum + item.item.price * item.quantity, 0),
     [cart]
+  );
+
+  const existingReceiptItemsCount = useMemo(
+    () =>
+      existingReceipt
+        ? existingReceipt.items.reduce((sum, item) => sum + item.quantity, 0)
+        : 0,
+    [existingReceipt]
   );
 
   const isSearching = searchQuery.trim().length > 0;
@@ -172,10 +184,23 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
       */}
       <div className="fixed top-0 left-0 right-0 max-w-md mx-auto z-40 bg-[#FAF7F2] border-b border-[#EDE4D6]/90 shadow-xs">
         <div className="w-full">
-          {/* Header Row: Logo & Table Number */}
-          <div className="flex items-center justify-between px-5 pt-3.5 pb-2">
-            <BrandLogo size="sm" layout="horizontal" />
-            <TableBadge tableNumber={tableNumber} />
+          {/* Header Row: Logo, Lihat Nota (if existing receipt), & Table Number */}
+          <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
+            <BrandLogo size="sm" layout="horizontal" className="min-w-0" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              {existingReceipt && (
+                <button
+                  type="button"
+                  onClick={onViewReceipt}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#3D271D] hover:bg-[#2C1911] active:scale-95 text-white text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
+                  title="Lihat Nota Final"
+                >
+                  <ReceiptText className="w-3.5 h-3.5" />
+                  <span>Lihat Nota</span>
+                </button>
+              )}
+              <TableBadge tableNumber={tableNumber} />
+            </div>
           </div>
 
           {/* Search Bar Row */}
@@ -518,10 +543,11 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
       </main>
 
       {/* 
-        FLOATING BOTTOM CART BAR:
-        Visible whenever there is at least 1 item in the cart.
+        FLOATING BOTTOM BAR:
+        - Shows active cart bar if buyer has new items in cart.
+        - If cart is empty and buyer already has a previous receipt, shows a quick bar to open Nota Final.
       */}
-      {totalItemsCount > 0 && (
+      {totalItemsCount > 0 ? (
         <div className="fixed bottom-4 left-0 right-0 z-40 px-4 flex justify-center pointer-events-none">
           <div className="w-full max-w-sm pointer-events-auto bg-[#F7EFE4] border border-[#E9DFCE] rounded-full p-2 pl-3 shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
             {/* Bag Icon & Info */}
@@ -531,7 +557,9 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="text-[11px] text-[#7A695B] leading-none">
-                  {totalItemsCount} Menu
+                  {existingReceipt
+                    ? `${totalItemsCount} Menu Tambahan`
+                    : `${totalItemsCount} Menu`}
                 </span>
                 <span className="font-bold text-xs text-[#3D271D] mt-0.5">
                   {formatRupiah(totalPrice)}
@@ -550,7 +578,34 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
             </button>
           </div>
         </div>
-      )}
+      ) : existingReceipt ? (
+        <div className="fixed bottom-4 left-0 right-0 z-40 px-4 flex justify-center pointer-events-none">
+          <div className="w-full max-w-sm pointer-events-auto bg-[#F7EFE4] border border-[#E9DFCE] rounded-full p-2 pl-3 shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#486B42] shadow-2xs">
+                <ReceiptText className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] text-[#7A695B] leading-none">
+                  Nota Aktif ({existingReceiptItemsCount} Menu)
+                </span>
+                <span className="font-bold text-xs text-[#3D271D] mt-0.5">
+                  {formatRupiah(existingReceipt.total)}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onViewReceipt}
+              className="py-2.5 px-4 rounded-full bg-[#3D271D] hover:bg-[#2C1911] active:scale-95 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            >
+              <span>Lihat Nota</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

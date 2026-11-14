@@ -21,14 +21,24 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
 
   const handleSaveReceipt = () => {
     try {
-      const width = 760;
+      const cardMargin = 22;
+      const cardWidth = 640;
+      const padX = 42;
       const lineHeight = 32;
       const noteHeight = 24;
       const itemsBlockHeight = receipt.items.reduce(
-        (acc, item) => acc + 46 + (item.note ? noteHeight : 0),
+        (acc, item) => acc + 44 + (item.note ? noteHeight : 0),
         0
       );
-      const height = Math.max(760, 480 + itemsBlockHeight);
+
+      // Calculate exact card height so only the receipt paper and its contents appear
+      const headerHeight = 250; // Tree emblem + brand + status pill
+      const metaHeight = 134; // 3 metadata rows + divider + spacing
+      const footerHeight = 180; // Dashed divider + total + cashier notice + bottom padding
+      const cardHeight = headerHeight + metaHeight + itemsBlockHeight + footerHeight;
+
+      const width = cardWidth + cardMargin * 2;
+      const height = cardHeight + cardMargin * 2;
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -36,66 +46,123 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        // Warm cream background
-        ctx.fillStyle = '#FAF7F2';
-        ctx.fillRect(0, 0, width, height);
+        // Transparent outside the rounded receipt paper (no outer background, with clean margin from edges)
+        ctx.clearRect(0, 0, width, height);
 
-        // White receipt card
-        const cardX = 48;
-        const cardY = 48;
-        const cardW = width - 96;
-        const cardH = height - 96;
-        const radius = 32;
+        ctx.save();
+        ctx.translate(cardMargin, cardMargin);
 
-        ctx.fillStyle = '#FFFFFF';
+        // Rounded white receipt paper matching the on-screen rounded-3xl card
+        const cardRadius = 40;
+
         ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, radius);
+        ctx.roundRect(0, 0, cardWidth, cardHeight, cardRadius);
+        ctx.fillStyle = '#FFFFFF';
         ctx.fill();
-        ctx.strokeStyle = '#ECE0D2';
-        ctx.lineWidth = 2;
+
+        // Crisp rounded border matching the digital receipt card
+        ctx.strokeStyle = '#D8C7B4';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        // Clip contents neatly inside the rounded receipt paper
+        ctx.beginPath();
+        ctx.roundRect(0, 0, cardWidth, cardHeight, cardRadius);
+        ctx.clip();
+
+        // Draw Fortunate Coffee Tree Emblem at top center
+        const treeCenterX = cardWidth / 2;
+        const treeTopY = 34;
+        const s = 0.72; // scale factor for 100x100 tree viewBox
+        const tx = (x: number) => treeCenterX + (x - 50) * s;
+        const ty = (y: number) => treeTopY + y * s;
+
+        ctx.fillStyle = '#2B4B27';
+        ctx.strokeStyle = '#2B4B27';
+
+        const leafCircles: [number, number, number][] = [
+          [50, 22, 5], [41, 26, 4.5], [59, 26, 4.5],
+          [33, 32, 4.5], [49, 31, 5], [67, 32, 4.5],
+          [26, 40, 4.5], [40, 38, 4.5], [60, 38, 4.5], [74, 40, 4.5],
+          [21, 50, 4.5], [34, 48, 4.5], [50, 46, 5], [66, 48, 4.5], [79, 50, 4.5],
+          [18, 62, 4], [29, 59, 4], [43, 58, 4], [57, 58, 4], [71, 59, 4], [82, 62, 4],
+        ];
+        leafCircles.forEach(([cx, cy, r]) => {
+          ctx.beginPath();
+          ctx.arc(tx(cx), ty(cy), r * s, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Trunk
+        ctx.beginPath();
+        ctx.moveTo(tx(48), ty(48));
+        ctx.quadraticCurveTo(tx(49), ty(70), tx(46), ty(80));
+        ctx.lineTo(tx(44), ty(86));
+        ctx.lineTo(tx(56), ty(86));
+        ctx.lineTo(tx(54), ty(80));
+        ctx.quadraticCurveTo(tx(51), ty(70), tx(52), ty(48));
+        ctx.closePath();
+        ctx.fill();
+
+        // Branches
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 2.4 * s;
+        ctx.beginPath();
+        ctx.moveTo(tx(49), ty(60));
+        ctx.quadraticCurveTo(tx(38), ty(48), tx(30), ty(52));
+        ctx.moveTo(tx(51), ty(60));
+        ctx.quadraticCurveTo(tx(62), ty(48), tx(70), ty(52));
+        ctx.stroke();
+
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(tx(49), ty(52));
+        ctx.quadraticCurveTo(tx(36), ty(38), tx(28), ty(42));
+        ctx.moveTo(tx(51), ty(52));
+        ctx.quadraticCurveTo(tx(64), ty(38), tx(72), ty(42));
         ctx.stroke();
 
         // Brand Header
         ctx.textAlign = 'center';
         ctx.fillStyle = '#3D271D';
-        ctx.font = 'bold 34px Georgia, serif';
-        ctx.fillText('Fortunate Coffee', width / 2, cardY + 72);
+        ctx.font = 'bold 30px Georgia, serif';
+        ctx.fillText('Fortunate Coffee', cardWidth / 2, 134);
 
         ctx.fillStyle = '#486B42';
-        ctx.font = 'italic 18px Georgia, serif';
-        ctx.fillText('Loving Nature', width / 2, cardY + 102);
+        ctx.font = 'italic 16px Georgia, serif';
+        ctx.fillText('Loving Nature', cardWidth / 2, 160);
 
         // Status pill
-        const pillW = 280;
-        const pillH = 38;
-        const pillX = (width - pillW) / 2;
-        const pillY = cardY + 128;
+        const pillW = 264;
+        const pillH = 36;
+        const pillX = (cardWidth - pillW) / 2;
+        const pillY = 182;
         ctx.fillStyle = '#FCEEE2';
         ctx.beginPath();
-        ctx.roundRect(pillX, pillY, pillW, pillH, 19);
+        ctx.roundRect(pillX, pillY, pillW, pillH, 18);
         ctx.fill();
         ctx.strokeStyle = '#F5DEC9';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.fillStyle = '#7A4B29';
-        ctx.font = '600 15px sans-serif';
-        ctx.fillText(`Status: ${receipt.status}`, width / 2, pillY + 24);
+        ctx.font = '600 14px sans-serif';
+        ctx.fillText(`Status: ${receipt.status}`, cardWidth / 2, pillY + 23);
 
         // Metadata
-        let y = pillY + 80;
-        const leftX = cardX + 42;
-        const rightX = cardX + cardW - 42;
+        let y = 264;
+        const leftX = padX;
+        const rightX = cardWidth - padX;
 
         const drawMetaRow = (label: string, val: string, boldVal = true) => {
           ctx.textAlign = 'left';
           ctx.fillStyle = '#6B5749';
-          ctx.font = '16px sans-serif';
+          ctx.font = '15px sans-serif';
           ctx.fillText(label, leftX, y);
 
           ctx.textAlign = 'right';
           ctx.fillStyle = '#3D271D';
-          ctx.font = boldVal ? 'bold 16px sans-serif' : '500 16px sans-serif';
+          ctx.font = boldVal ? 'bold 15px sans-serif' : '500 15px sans-serif';
           ctx.fillText(val, rightX, y);
           y += lineHeight;
         };
@@ -105,7 +172,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
         drawMetaRow('Tanggal', receipt.createdAt, false);
 
         // Divider
-        y += 6;
+        y += 4;
         ctx.strokeStyle = '#EFE5D7';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -120,24 +187,24 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
 
           ctx.textAlign = 'left';
           ctx.fillStyle = '#3D271D';
-          ctx.font = 'bold 17px sans-serif';
-          ctx.fillText(cartItem.item.name, leftX, y);
+          ctx.font = 'bold 16px sans-serif';
+          ctx.fillText(cartItem.item.name, leftX, y, rightX - 225 - leftX);
 
           ctx.textAlign = 'right';
           ctx.fillStyle = '#7B6A5E';
-          ctx.font = '15px sans-serif';
-          ctx.fillText(`${cartItem.quantity}x ${formatRupiah(cartItem.item.price)}`, rightX - 130, y);
+          ctx.font = '14px sans-serif';
+          ctx.fillText(`${cartItem.quantity}x ${formatRupiah(cartItem.item.price)}`, rightX - 115, y);
 
           ctx.fillStyle = '#3D271D';
-          ctx.font = 'bold 17px sans-serif';
+          ctx.font = 'bold 16px sans-serif';
           ctx.fillText(formatRupiah(itemTotal), rightX, y);
 
           if (cartItem.note) {
             y += 22;
             ctx.textAlign = 'left';
             ctx.fillStyle = '#867568';
-            ctx.font = 'italic 14px sans-serif';
-            ctx.fillText(`Catatan: ${cartItem.note}`, leftX, y);
+            ctx.font = 'italic 13px sans-serif';
+            ctx.fillText(`Catatan: ${cartItem.note}`, leftX, y, rightX - leftX);
           }
 
           y += 42;
@@ -153,32 +220,44 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
         ctx.lineTo(rightX, y);
         ctx.stroke();
         ctx.restore();
-        y += 42;
+        y += 38;
 
         // Total
         ctx.textAlign = 'left';
         ctx.fillStyle = '#3D271D';
-        ctx.font = 'bold 20px sans-serif';
+        ctx.font = 'bold 18px sans-serif';
         ctx.fillText('Total', leftX, y);
 
         ctx.textAlign = 'right';
-        ctx.font = 'bold 24px Georgia, serif';
+        ctx.font = 'bold 22px Georgia, serif';
         ctx.fillText(formatRupiah(receipt.total), rightX, y);
 
         // Cashier notice
-        y += 36;
+        y += 32;
         ctx.fillStyle = '#F7EFE4';
         ctx.beginPath();
-        ctx.roundRect(leftX, y, cardW - 84, 52, 16);
+        ctx.roundRect(leftX, y, cardWidth - padX * 2, 50, 16);
         ctx.fill();
         ctx.strokeStyle = '#E9DFD0';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
+        // Info circle icon
+        ctx.fillStyle = '#42281D';
+        ctx.beginPath();
+        ctx.arc(leftX + 28, y + 25, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'italic bold 13px Georgia, serif';
+        ctx.fillText('i', leftX + 28, y + 30);
+
         ctx.textAlign = 'left';
         ctx.fillStyle = '#5D4A3D';
-        ctx.font = '600 16px sans-serif';
-        ctx.fillText('Pembayaran dilakukan di kasir.', leftX + 24, y + 32);
+        ctx.font = '600 15px sans-serif';
+        ctx.fillText('Pembayaran dilakukan di kasir.', leftX + 50, y + 30);
+
+        ctx.restore();
 
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -264,11 +343,11 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
 
             {/* Ordered Line Items */}
             <div className="py-4 space-y-4">
-              {receipt.items.map((cartItem) => {
+              {receipt.items.map((cartItem, idx) => {
                 const itemTotal = cartItem.item.price * cartItem.quantity;
 
                 return (
-                  <div key={cartItem.item.id} className="text-xs">
+                  <div key={`${cartItem.item.id}-${idx}`} className="text-xs">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 pr-2">
                         <span className="font-semibold text-[#3D271D]">

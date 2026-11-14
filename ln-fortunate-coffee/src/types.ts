@@ -36,4 +36,5 @@ export interface OrderReceipt {
   items: CartItem[];
   total: number;
   status: 'Menunggu Pembayaran' | 'Sedang Diproses' | 'Selesai';
+  orderCount?: number;
 }
