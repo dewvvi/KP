@@ -3,7 +3,7 @@ import { OrderReceipt } from '../types';
 import { formatRupiah } from '../data/menuData';
 import { BrandLogo } from './BrandLogo';
 import { LeafBranchBottom, BottomDunesWave, LeafSprigTopLeft, LeafSprigTopRight } from './BotanicalDecorations';
-import { ArrowLeft, Info, Check, Printer, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Info, Check, Download, RotateCcw } from 'lucide-react';
 
 interface ReceiptScreenProps {
   receipt: OrderReceipt;
@@ -17,9 +17,183 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
   onNewOrder,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const handlePrint = () => {
-    window.print();
+  const handleSaveReceipt = () => {
+    try {
+      const width = 760;
+      const lineHeight = 32;
+      const noteHeight = 24;
+      const itemsBlockHeight = receipt.items.reduce(
+        (acc, item) => acc + 46 + (item.note ? noteHeight : 0),
+        0
+      );
+      const height = Math.max(760, 480 + itemsBlockHeight);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        // Warm cream background
+        ctx.fillStyle = '#FAF7F2';
+        ctx.fillRect(0, 0, width, height);
+
+        // White receipt card
+        const cardX = 48;
+        const cardY = 48;
+        const cardW = width - 96;
+        const cardH = height - 96;
+        const radius = 32;
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, radius);
+        ctx.fill();
+        ctx.strokeStyle = '#ECE0D2';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Brand Header
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#3D271D';
+        ctx.font = 'bold 34px Georgia, serif';
+        ctx.fillText('Fortunate Coffee', width / 2, cardY + 72);
+
+        ctx.fillStyle = '#486B42';
+        ctx.font = 'italic 18px Georgia, serif';
+        ctx.fillText('Loving Nature', width / 2, cardY + 102);
+
+        // Status pill
+        const pillW = 280;
+        const pillH = 38;
+        const pillX = (width - pillW) / 2;
+        const pillY = cardY + 128;
+        ctx.fillStyle = '#FCEEE2';
+        ctx.beginPath();
+        ctx.roundRect(pillX, pillY, pillW, pillH, 19);
+        ctx.fill();
+        ctx.strokeStyle = '#F5DEC9';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#7A4B29';
+        ctx.font = '600 15px sans-serif';
+        ctx.fillText(`Status: ${receipt.status}`, width / 2, pillY + 24);
+
+        // Metadata
+        let y = pillY + 80;
+        const leftX = cardX + 42;
+        const rightX = cardX + cardW - 42;
+
+        const drawMetaRow = (label: string, val: string, boldVal = true) => {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#6B5749';
+          ctx.font = '16px sans-serif';
+          ctx.fillText(label, leftX, y);
+
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#3D271D';
+          ctx.font = boldVal ? 'bold 16px sans-serif' : '500 16px sans-serif';
+          ctx.fillText(val, rightX, y);
+          y += lineHeight;
+        };
+
+        drawMetaRow('No. Pesanan', receipt.orderNumber);
+        drawMetaRow('Meja', receipt.tableNumber);
+        drawMetaRow('Tanggal', receipt.createdAt, false);
+
+        // Divider
+        y += 6;
+        ctx.strokeStyle = '#EFE5D7';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(leftX, y);
+        ctx.lineTo(rightX, y);
+        ctx.stroke();
+        y += 34;
+
+        // Items
+        receipt.items.forEach((cartItem) => {
+          const itemTotal = cartItem.item.price * cartItem.quantity;
+
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#3D271D';
+          ctx.font = 'bold 17px sans-serif';
+          ctx.fillText(cartItem.item.name, leftX, y);
+
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#7B6A5E';
+          ctx.font = '15px sans-serif';
+          ctx.fillText(`${cartItem.quantity}x ${formatRupiah(cartItem.item.price)}`, rightX - 130, y);
+
+          ctx.fillStyle = '#3D271D';
+          ctx.font = 'bold 17px sans-serif';
+          ctx.fillText(formatRupiah(itemTotal), rightX, y);
+
+          if (cartItem.note) {
+            y += 22;
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#867568';
+            ctx.font = 'italic 14px sans-serif';
+            ctx.fillText(`Catatan: ${cartItem.note}`, leftX, y);
+          }
+
+          y += 42;
+        });
+
+        // Dashed divider
+        ctx.save();
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = '#D9CABB';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(leftX, y);
+        ctx.lineTo(rightX, y);
+        ctx.stroke();
+        ctx.restore();
+        y += 42;
+
+        // Total
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#3D271D';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('Total', leftX, y);
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 24px Georgia, serif';
+        ctx.fillText(formatRupiah(receipt.total), rightX, y);
+
+        // Cashier notice
+        y += 36;
+        ctx.fillStyle = '#F7EFE4';
+        ctx.beginPath();
+        ctx.roundRect(leftX, y, cardW - 84, 52, 16);
+        ctx.fill();
+        ctx.strokeStyle = '#E9DFD0';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#5D4A3D';
+        ctx.font = '600 16px sans-serif';
+        ctx.fillText('Pembayaran dilakukan di kasir.', leftX + 24, y + 32);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Nota-Fortunate-Coffee-${receipt.orderNumber.replace('#', '')}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      console.error('Gagal menyimpan nota:', err);
+    }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   const handleCopyOrderNumber = () => {
@@ -41,7 +215,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
           <button
             type="button"
             onClick={onBackToHome}
-            className="p-1 -ml-1 text-[#3D271D] hover:opacity-75 transition-opacity"
+            className="p-1 -ml-1 text-[#3D271D] hover:opacity-75 transition-opacity cursor-pointer"
             aria-label="Kembali"
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
@@ -101,10 +275,10 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
                           {cartItem.item.name}
                         </span>
                       </div>
-                      <div className="text-right text-[#7B6A5E] pr-3 shrink-0">
+                      <div className="text-right text-[#7B6A5E] pr-3 shrink-0 tabular-nums">
                         {cartItem.quantity}x {formatRupiah(cartItem.item.price)}
                       </div>
-                      <div className="font-semibold text-[#3D271D] shrink-0 text-right min-w-[70px]">
+                      <div className="font-semibold text-[#3D271D] shrink-0 text-right min-w-[70px] tabular-nums">
                         {formatRupiah(itemTotal)}
                       </div>
                     </div>
@@ -126,7 +300,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
             {/* Total Row */}
             <div className="py-3 flex items-center justify-between">
               <span className="font-bold text-sm text-[#3D271D]">Total</span>
-              <span className="font-serif-brand font-bold text-base text-[#3D271D]">
+              <span className="font-serif-brand font-bold text-base text-[#3D271D] tabular-nums">
                 {formatRupiah(receipt.total)}
               </span>
             </div>
@@ -155,11 +329,20 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
 
             <button
               type="button"
-              onClick={handlePrint}
+              onClick={handleSaveReceipt}
               className="w-full py-3 px-6 rounded-full bg-[#F3ECE0] hover:bg-[#EAE1D3] active:scale-[0.98] text-[#3D271D] font-semibold text-xs border border-[#E7DDCF] shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>Simpan / Cetak Nota</span>
+              {saved ? (
+                <>
+                  <Check className="w-4 h-4 text-[#486B42]" />
+                  <span>Nota Tersimpan</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Simpan Nota</span>
+                </>
+              )}
             </button>
           </div>
         </div>

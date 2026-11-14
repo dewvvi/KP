@@ -5,11 +5,10 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { CatalogScreen } from './components/CatalogScreen';
 import { MenuDetailScreen } from './components/MenuDetailScreen';
 import { CartScreen } from './components/CartScreen';
-import { ConfirmationScreen } from './components/ConfirmationScreen';
 import { ReceiptScreen } from './components/ReceiptScreen';
 import { QrCode } from 'lucide-react';
 
-type ScreenType = 'welcome' | 'catalog' | 'detail' | 'cart' | 'confirm' | 'receipt';
+type ScreenType = 'welcome' | 'catalog' | 'detail' | 'cart' | 'receipt';
 
 // Helper to extract table number from URL query string (?meja=... or ?table=...) or hash
 const extractTableFromUrl = (): string => {
@@ -200,18 +199,8 @@ export default function App() {
             onBack={() => setCurrentScreen('catalog')}
             onUpdateQuantity={handleUpdateCartQuantity}
             onRemoveItem={handleRemoveCartItem}
-            onProceedToConfirmation={() => setCurrentScreen('confirm')}
-            onNavigateToCatalog={() => setCurrentScreen('catalog')}
-          />
-        )}
-
-        {currentScreen === 'confirm' && (
-          <ConfirmationScreen
-            tableNumber={tableNumber}
-            cart={cart}
-            onBack={() => setCurrentScreen('cart')}
-            onEditOrder={() => setCurrentScreen('cart')}
             onConfirmOrder={handleConfirmOrder}
+            onNavigateToCatalog={() => setCurrentScreen('catalog')}
           />
         )}
 
@@ -247,7 +236,7 @@ export default function App() {
         </div>
 
         <span className="text-[11px] font-medium text-[#C8B8A6] px-1">Layar:</span>
-        {(['welcome', 'catalog', 'cart', 'confirm', 'receipt'] as ScreenType[]).map((scr) => (
+        {(['welcome', 'catalog', 'cart', 'receipt'] as ScreenType[]).map((scr) => (
           <button
             key={scr}
             type="button"
@@ -270,8 +259,6 @@ export default function App() {
               ? '2. Menu'
               : scr === 'cart'
               ? '4. Keranjang'
-              : scr === 'confirm'
-              ? '5. Konfirmasi'
               : '7. Nota'}
           </button>
         ))}
