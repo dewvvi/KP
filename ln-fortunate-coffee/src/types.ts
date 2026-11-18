@@ -37,4 +37,7 @@ export interface OrderReceipt {
   total: number;
   status: 'Menunggu Pembayaran' | 'Sedang Diproses' | 'Selesai';
   orderCount?: number;
+  isAdditionalOrder?: boolean;
+  subtotal?: number;
+  previousTotal?: number;
 }

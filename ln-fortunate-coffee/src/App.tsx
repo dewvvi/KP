@@ -56,8 +56,10 @@ export default function App() {
   // Initialize with an empty cart
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Active receipt data
+  // Active final combined receipt data & latest additional-order receipt view
   const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
+  const [latestBatchReceipt, setLatestBatchReceipt] = useState<OrderReceipt | null>(null);
+  const [receiptViewMode, setReceiptViewMode] = useState<'final' | 'latest'>('final');
 
   // Ensure scroll position resets to top on screen change
   useEffect(() => {
@@ -131,6 +133,7 @@ export default function App() {
   const handleConfirmOrder = useCallback(() => {
     if (cart.length === 0) {
       if (receipt) {
+        setReceiptViewMode('final');
         setCurrentScreen('receipt');
       }
       return;
@@ -148,44 +151,71 @@ export default function App() {
       now.getMinutes()
     ).padStart(2, '0')}`;
 
-    setReceipt((prev) => {
-      if (prev) {
-        const mergedItems = mergeOrderItems(prev.items, cart);
-        const combinedTotal = mergedItems.reduce(
-          (sum, ci) => sum + ci.item.price * ci.quantity,
-          0
-        );
-        return {
-          ...prev,
-          tableNumber,
-          createdAt: dateFormatted,
-          items: mergedItems,
-          total: combinedTotal,
-          status: 'Menunggu Pembayaran',
-          orderCount: (prev.orderCount || 1) + 1,
-        };
-      }
+    const batchItems = cart.map((ci) => ({ ...ci }));
+    const batchSubtotal = batchItems.reduce(
+      (sum, item) => sum + item.item.price * item.quantity,
+      0
+    );
 
-      const total = cart.reduce(
-        (sum, item) => sum + item.item.price * item.quantity,
+    if (receipt) {
+      const previousTotal = receipt.total;
+      const mergedItems = mergeOrderItems(receipt.items, batchItems);
+      const combinedTotal = mergedItems.reduce(
+        (sum, ci) => sum + ci.item.price * ci.quantity,
         0
       );
 
-      return {
+      // Separate receipt for immediate confirmation view (only new additional items)
+      setLatestBatchReceipt({
+        orderNumber: receipt.orderNumber,
+        tableNumber,
+        createdAt: dateFormatted,
+        items: batchItems,
+        subtotal: batchSubtotal,
+        previousTotal,
+        total: combinedTotal,
+        status: 'Menunggu Pembayaran',
+        isAdditionalOrder: true,
+      });
+
+      // Combined final receipt for "Lihat Nota" from main/catalog page
+      setReceipt({
+        ...receipt,
+        tableNumber,
+        createdAt: dateFormatted,
+        items: mergedItems,
+        total: combinedTotal,
+        status: 'Menunggu Pembayaran',
+        orderCount: (receipt.orderCount || 1) + 1,
+        isAdditionalOrder: false,
+      });
+
+      setReceiptViewMode('latest');
+    } else {
+      setLatestBatchReceipt(null);
+      setReceipt({
         orderNumber: '#P250501-001',
         tableNumber,
         createdAt: dateFormatted,
-        items: cart.map((ci) => ({ ...ci })),
-        total,
+        items: batchItems,
+        total: batchSubtotal,
         status: 'Menunggu Pembayaran',
         orderCount: 1,
-      };
-    });
+        isAdditionalOrder: false,
+      });
+      setReceiptViewMode('final');
+    }
 
     // Clear cart so any future additional order stays separated from confirmed orders
     setCart([]);
     setCurrentScreen('receipt');
   }, [cart, receipt, tableNumber]);
+
+  // Open final combined receipt from home/catalog or cart
+  const handleViewFinalReceipt = () => {
+    setReceiptViewMode('final');
+    setCurrentScreen('receipt');
+  };
 
   // Start new / additional order
   const handleNewOrder = () => {
@@ -224,7 +254,7 @@ export default function App() {
             onAddToCart={handleAddToCart}
             onUpdateCartQuantity={handleUpdateCartQuantity}
             onViewCart={() => setCurrentScreen('cart')}
-            onViewReceipt={() => setCurrentScreen('receipt')}
+            onViewReceipt={handleViewFinalReceipt}
           />
         )}
 
@@ -252,13 +282,13 @@ export default function App() {
             onRemoveItem={handleRemoveCartItem}
             onConfirmOrder={handleConfirmOrder}
             onNavigateToCatalog={() => setCurrentScreen('catalog')}
-            onViewReceipt={() => setCurrentScreen('receipt')}
+            onViewReceipt={handleViewFinalReceipt}
           />
         )}
 
-        {currentScreen === 'receipt' && receipt && (
+        {currentScreen === 'receipt' && (receiptViewMode === 'latest' && latestBatchReceipt ? latestBatchReceipt : receipt) && (
           <ReceiptScreen
-            receipt={receipt}
+            receipt={(receiptViewMode === 'latest' && latestBatchReceipt ? latestBatchReceipt : receipt)!}
             onBackToHome={() => setCurrentScreen('catalog')}
             onNewOrder={handleNewOrder}
           />
@@ -293,9 +323,11 @@ export default function App() {
             key={scr}
             type="button"
             onClick={() => {
-              if (scr === 'receipt' && !receipt) {
-                if (cart.length > 0) {
+              if (scr === 'receipt') {
+                if (!receipt && cart.length > 0) {
                   handleConfirmOrder();
+                } else if (receipt) {
+                  handleViewFinalReceipt();
                 }
               } else {
                 setCurrentScreen(scr);

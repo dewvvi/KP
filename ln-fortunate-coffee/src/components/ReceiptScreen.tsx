@@ -34,7 +34,7 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
       // Calculate exact card height so only the receipt paper and its contents appear
       const headerHeight = 250; // Tree emblem + brand + status pill
       const metaHeight = 134; // 3 metadata rows + divider + spacing
-      const footerHeight = 180; // Dashed divider + total + cashier notice + bottom padding
+      const footerHeight = receipt.isAdditionalOrder ? 236 : 180; // Dashed divider + totals + cashier notice + bottom padding
       const cardHeight = headerHeight + metaHeight + itemsBlockHeight + footerHeight;
 
       const width = cardWidth + cardMargin * 2;
@@ -222,18 +222,55 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
         ctx.restore();
         y += 38;
 
-        // Total
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#3D271D';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.fillText('Total', leftX, y);
+        // Totals
+        if (receipt.isAdditionalOrder) {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#6B5749';
+          ctx.font = '15px sans-serif';
+          ctx.fillText('Subtotal', leftX, y);
 
-        ctx.textAlign = 'right';
-        ctx.font = 'bold 22px Georgia, serif';
-        ctx.fillText(formatRupiah(receipt.total), rightX, y);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#3D271D';
+          ctx.font = 'bold 16px sans-serif';
+          ctx.fillText(formatRupiah(receipt.subtotal ?? 0), rightX, y);
+
+          y += 28;
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#6B5749';
+          ctx.font = '14px sans-serif';
+          ctx.fillText('Pesanan Sebelumnya', leftX, y);
+
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#5C4A3E';
+          ctx.font = '500 15px sans-serif';
+          ctx.fillText(formatRupiah(receipt.previousTotal ?? 0), rightX, y);
+
+          y += 38;
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#3B6B35';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('Total', leftX, y);
+
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#3B6B35';
+          ctx.font = 'bold 22px Georgia, serif';
+          ctx.fillText(formatRupiah(receipt.total), rightX, y);
+
+          y += 30;
+        } else {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#3D271D';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('Total', leftX, y);
+
+          ctx.textAlign = 'right';
+          ctx.font = 'bold 22px Georgia, serif';
+          ctx.fillText(formatRupiah(receipt.total), rightX, y);
+
+          y += 32;
+        }
 
         // Cashier notice
-        y += 32;
         ctx.fillStyle = '#F7EFE4';
         ctx.beginPath();
         ctx.roundRect(leftX, y, cardWidth - padX * 2, 50, 16);
@@ -376,13 +413,36 @@ export const ReceiptScreen: React.FC<ReceiptScreenProps> = ({
             {/* Dotted Divider */}
             <div className="border-t border-dashed border-[#D9CABB] my-1" />
 
-            {/* Total Row */}
-            <div className="py-3 flex items-center justify-between">
-              <span className="font-bold text-sm text-[#3D271D]">Total</span>
-              <span className="font-serif-brand font-bold text-base text-[#3D271D] tabular-nums">
-                {formatRupiah(receipt.total)}
-              </span>
-            </div>
+            {/* Total Row(s) */}
+            {receipt.isAdditionalOrder ? (
+              <div className="py-3 space-y-2">
+                <div className="flex items-center justify-between text-xs text-[#6B5749]">
+                  <span>Subtotal</span>
+                  <span className="font-semibold text-[#3D271D] tabular-nums">
+                    {formatRupiah(receipt.subtotal ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-[#6B5749]">
+                  <span>Pesanan Sebelumnya</span>
+                  <span className="font-medium text-[#5C4A3E] tabular-nums">
+                    {formatRupiah(receipt.previousTotal ?? 0)}
+                  </span>
+                </div>
+                <div className="pt-1 flex items-center justify-between">
+                  <span className="font-bold text-sm text-[#3B6B35]">Total</span>
+                  <span className="font-serif-brand font-bold text-base text-[#3B6B35] tabular-nums">
+                    {formatRupiah(receipt.total)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="py-3 flex items-center justify-between">
+                <span className="font-bold text-sm text-[#3D271D]">Total</span>
+                <span className="font-serif-brand font-bold text-base text-[#3D271D] tabular-nums">
+                  {formatRupiah(receipt.total)}
+                </span>
+              </div>
+            )}
 
             {/* Callout Notice: Pembayaran dilakukan di kasir */}
             <div className="mt-3 p-3.5 rounded-2xl bg-[#F7EFE4] border border-[#E9DFD0] flex items-center gap-3 text-xs text-[#5D4A3D]">
